@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Трекер целей</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #f5f4f0;
+    --surface: #ffffff;
+    --surface2: #f0eeea;
+    --border: rgba(0,0,0,0.1);
+    --border2: rgba(0,0,0,0.18);
+    --text: #1a1a1a;
+    --text2: #6b6b6b;
+    --text3: #a0a0a0;
+    --radius-md: 8px;
+    --radius-lg: 14px;
+    --radius-xl: 20px;
+    --green: #1D9E75;
+    --green-bg: #E1F5EE;
+    --purple: #534AB7;
+    --purple-bg: #EEEDFE;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #141414;
+      --surface: #1e1e1e;
+      --surface2: #272727;
+      --border: rgba(255,255,255,0.1);
+      --border2: rgba(255,255,255,0.18);
+      --text: #f0f0f0;
+      --text2: #a0a0a0;
+      --text3: #606060;
+      --green-bg: #0a3326;
+      --purple-bg: #1e1b42;
+    }
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  .app {
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 1.5rem 1rem 3rem;
+  }
+
+  /* Header */
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.5rem;
+  }
+  .header h1 { font-size: 22px; font-weight: 600; }
+
+  /* Tabs */
+  .tab-bar {
+    display: flex;
+    gap: 4px;
+    background: var(--surface2);
+    border-radius: var(--radius-md);
+    padding: 4px;
+    margin-bottom: 1.5rem;
+  }
+  .tab {
+    flex: 1;
+    padding: 9px;
+    border: none;
+    background: transparent;
+    border-radius: 6px;
+    font-size: 14px;
+    cursor: pointer;
+    color: var(--text2);
+    transition: all .15s;
+    font-weight: 400;
+  }
+  .tab.active {
+    background: var(--surface);
+    color: var(--text);
+    font-weight: 500;
+    border: 0.5px solid var(--border);
+  }
+
+  .section { display: none; }
+  .section.active { display: block; }
+
+  /* Cards */
+  .card {
+    background: var(--surface);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 1rem 1.25rem;
+    margin-bottom: 12px;
+  }
+
+  /* Goal card header */
+  .goal-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+  .goal-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+  .goal-name { font-size: 15px; font-weight: 500; line-height: 1.3; }
+  .goal-meta { font-size: 12px; color: var(--text2); margin-top: 3px; display: flex; align-items: center; gap: 6px; }
+  .goal-actions { display: flex; gap: 6px; margin-left: auto; }
+
+  /* Stats row */
+  .stats-row {
+    display: flex;
+    gap: 6px;
+    margin-top: 10px;
+  }
+  .stat-pill {
+    flex: 1;
+    background: var(--surface2);
+    border-radius: var(--radius-md);
+    padding: 8px 4px;
+    text-align: center;
+  }
+  .stat-num { font-size: 20px; font-weight: 600; }
+  .stat-lbl { font-size: 10px; color: var(--text2); margin-top: 2px; line-height: 1.3; }
+
+  /* Progress bar */
+  .progress-bar {
+    height: 6px;
+    background: var(--surface2);
+    border-radius: 3px;
+    margin-top: 10px;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width .4s ease;
+  }
+
+  /* Calendar */
+  .cal-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: 12px 0 8px;
+  }
+  .cal-nav span { font-size: 14px; font-weight: 500; }
+  .cal-nav button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--text2);
+    font-size: 18px;
+    padding: 2px 8px;
+    border-radius: 6px;
+    line-height: 1;
+  }
+  .cal-nav button:hover { background: var(--surface2); }
+  .cal-nav button:disabled { opacity: .3; cursor: default; }
+
+  .calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+  }
+  .cal-day-name {
+    font-size: 10px;
+    color: var(--text3);
+    text-align: center;
+    padding: 2px 0;
+    font-weight: 500;
+  }
+  .cal-day {
+    width: 100%;
+    aspect-ratio: 1;
+    border-radius: 6px;
+    border: 0.5px solid var(--border);
+    background: transparent;
+    cursor: pointer;
+    font-size: 11px;
+    color: var(--text2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all .15s;
+    user-select: none;
+  }
+  .cal-day:hover:not(.future):not(.empty) { border-color: var(--border2); background: var(--surface2); }
+  .cal-day.done { background: var(--green); border-color: #0F6E56; color: #fff; font-weight: 500; }
+  .cal-day.today { border-color: var(--purple); border-width: 1.5px; font-weight: 600; }
+  .cal-day.today.done { border-color: #0F6E56; }
+  .cal-day.empty { visibility: hidden; cursor: default; }
+  .cal-day.future { opacity: .3; cursor: default; }
+
+  /* Buttons */
+  .btn {
+    padding: 8px 16px;
+    border-radius: var(--radius-md);
+    border: 0.5px solid var(--border2);
+    background: transparent;
+    color: var(--text);
+    font-size: 14px;
+    cursor: pointer;
+    transition: all .15s;
+    font-family: inherit;
+  }
+  .btn:hover { background: var(--surface2); }
+  .btn-primary { background: var(--purple); border-color: #3C3489; color: #fff; }
+  .btn-primary:hover { background: #3C3489; }
+  .btn-sm { padding: 6px 12px; font-size: 13px; }
+  .btn-danger { color: #E24B4A; }
+  .btn-danger:hover { background: #FCEBEB; border-color: #F09595; }
+
+  /* Streak badge */
+  .streak-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    background: #FAEEDA;
+    border-radius: 20px;
+    padding: 2px 8px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #633806;
+  }
+
+  /* Modal */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.45);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--surface);
+    border-radius: var(--radius-xl);
+    padding: 1.5rem;
+    width: 100%;
+    max-width: 400px;
+    border: 0.5px solid var(--border);
+  }
+  .modal h2 { font-size: 17px; font-weight: 600; margin-bottom: 1.2rem; }
+  .modal-footer { display: flex; gap: 8px; justify-content: flex-end; margin-top: 1.2rem; }
+
+  /* Form */
+  .form-group { margin-bottom: 14px; }
+  .form-group label { display: block; font-size: 13px; color: var(--text2); margin-bottom: 6px; font-weight: 500; }
+  .form-group input,
+  .form-group select {
+    width: 100%;
+    padding: 9px 12px;
+    border: 0.5px solid var(--border2);
+    border-radius: var(--radius-md);
+    background: var(--bg);
+    color: var(--text);
+    font-size: 14px;
+    font-family: inherit;
+    outline: none;
+    transition: border-color .15s;
+  }
+  .form-group input:focus,
+  .form-group select:focus { border-color: var(--purple); }
+
+  .emoji-picker { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+  .emoji-opt {
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    border: 0.5px solid var(--border);
+    background: transparent;
+    cursor: pointer;
+    font-size: 17px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all .15s;
+  }
+  .emoji-opt:hover { background: var(--surface2); }
+  .emoji-opt.sel { border-color: var(--purple); background: var(--purple-bg); }
+
+  /* Overview */
+  .overview-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 1rem;
+  }
+  .ov-card {
+    background: var(--surface);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 14px 12px;
+    text-align: center;
+  }
+  .ov-num { font-size: 28px; font-weight: 700; }
+  .ov-lbl { font-size: 12px; color: var(--text2); margin-top: 4px; line-height: 1.3; }
+
+  /* Empty state */
+  .empty-state { text-align: center; padding: 3rem 1rem; color: var(--text2); }
+  .empty-state .es-icon { font-size: 40px; margin-bottom: 12px; }
+  .empty-state p { font-size: 15px; line-height: 1.6; }
+
+  /* Compact goal in overview */
+  .goal-compact {
+    background: var(--surface);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: .85rem 1rem;
+    margin-bottom: 8px;
+  }
+  .goal-compact-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+  .goal-compact-icon {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; flex-shrink: 0;
+  }
+
+  @media (max-width: 480px) {
+    .stats-row { gap: 4px; }
+    .stat-num { font-size: 17px; }
+    .overview-grid { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <div class="header">
+    <h1>Мои цели</h1>
+    <button class="btn btn-primary btn-sm" onclick="openModal()">+ Новая цель</button>
+  </div>
+
+  <div class="tab-bar">
+    <button class="tab active" onclick="switchTab('goals', this)">Цели</button>
+    <button class="tab" onclick="switchTab('overview', this)">Обзор</button>
+  </div>
+
+  <div class="section active" id="tab-goals">
+    <div id="goals-list"></div>
+  </div>
+
+  <div class="section" id="tab-overview">
+    <div id="overview-content"></div>
+  </div>
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <h2 id="modal-title">Новая цель</h2>
+    <div class="form-group">
+      <label>Название</label>
+      <input type="text" id="f-name" placeholder="Например: Медитация 10 минут" />
+    </div>
+    <div class="form-group">
+      <label>Иконка</label>
+      <div class="emoji-picker" id="emoji-picker"></div>
+    </div>
+    <div class="form-group">
+      <label>Цвет темы</label>
+      <select id="f-color">
+        <option value="purple">Фиолетовый</option>
+        <option value="teal">Зелёный</option>
+        <option value="blue">Синий</option>
+        <option value="amber">Оранжевый</option>
+        <option value="coral">Красный</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Цель в месяц (дней)</label>
+      <input type="number" id="f-target" value="20" min="1" max="31" />
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-sm" onclick="closeModal()">Отмена</button>
+      <button class="btn btn-primary btn-sm" onclick="saveGoal()">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const EMOJIS = ['🧘','🏃','📚','💪','🥗','💧','🎯','✍️','🌿','🎨','🎵','😴','🚴','🌅','🧹','🧠','🏋️','🎸','🍎','🛁'];
+
+const COLORS = {
+  purple: { bg: '#EEEDFE', border: '#AFA9EC', text: '#3C3489', icon: '#534AB7' },
+  teal:   { bg: '#E1F5EE', border: '#5DCAA5', text: '#085041', icon: '#1D9E75' },
+  blue:   { bg: '#E6F1FB', border: '#85B7EB', text: '#0C447C', icon: '#185FA5' },
+  amber:  { bg: '#FAEEDA', border: '#EF9F27', text: '#633806', icon: '#BA7517' },
+  coral:  { bg: '#FAECE7', border: '#F0997B', text: '#4A1B0C', icon: '#D85A30' }
+};
+
+const MONTHS = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+const DAY_NAMES = ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
+
+let goals = [];
+let editId = null;
+let selEmoji = '🎯';
+let calState = {};   // { goalId: { year, month } }
+
+/* ── Storage ─────────────────────────────────── */
+function loadData() {
+  try {
+    const raw = localStorage.getItem('goal_tracker_v2');
+    if (raw) goals = JSON.parse(raw);
+  } catch(e) {}
+  if (!goals.length) {
+    goals = [
+      { id: 1, name: 'Медитация', emoji: '🧘', color: 'purple', target: 20, completions: {} },
+      { id: 2, name: 'Пробежка',  emoji: '🏃', color: 'teal',   target: 15, completions: {} }
+    ];
+    saveData();
+  }
+}
+
+function saveData() {
+  try { localStorage.setItem('goal_tracker_v2', JSON.stringify(goals)); } catch(e) {}
+}
+
+/* ── Date helpers ────────────────────────────── */
+function dateKey(d) { return d.toISOString().slice(0, 10); }
+function todayKey() { return dateKey(new Date()); }
+
+function getCalState(id) {
+  if (!calState[id]) {
+    const n = new Date();
+    calState[id] = { year: n.getFullYear(), month: n.getMonth() };
+  }
+  return calState[id];
+}
+
+/* ── Stats ───────────────────────────────────── */
+function calcStreak(g) {
+  let streak = 0;
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  while (true) {
+    if (g.completions[dateKey(d)]) { streak++; d.setDate(d.getDate() - 1); }
+    else break;
+  }
+  return streak;
+}
+
+function calcMonthCount(g, year, month) {
+  const prefix = `${year}-${String(month + 1).padStart(2, '0')}`;
+  return Object.keys(g.completions).filter(k => k.startsWith(prefix) && g.completions[k]).length;
+}
+
+/* ── Toggle day ──────────────────────────────── */
+function toggleDay(goalId, key) {
+  if (key > todayKey()) return;
+  const g = goals.find(x => x.id === goalId);
+  if (!g) return;
+  g.completions[key] = !g.completions[key];
+  if (!g.completions[key]) delete g.completions[key];
+  saveData();
+  render();
+}
+
+/* ── Month navigation ────────────────────────── */
+function changeMonth(id, delta) {
+  const s = getCalState(id);
+  s.month += delta;
+  if (s.month < 0)  { s.month = 11; s.year--; }
+  if (s.month > 11) { s.month = 0;  s.year++; }
+  render();
+}
+
+/* ── Modal ───────────────────────────────────── */
+function openModal(id = null) {
+  editId = id;
+  const g = id ? goals.find(x => x.id === id) : null;
+  document.getElementById('modal-title').textContent = id ? 'Редактировать цель' : 'Новая цель';
+  document.getElementById('f-name').value   = g ? g.name   : '';
+  document.getElementById('f-target').value = g ? g.target : 20;
+  document.getElementById('f-color').value  = g ? g.color  : 'purple';
+  selEmoji = g ? g.emoji : '🎯';
+  buildEmojiPicker();
+  document.getElementById('modal').classList.add('open');
+  setTimeout(() => document.getElementById('f-name').focus(), 50);
+}
+
+function closeModal() {
+  document.getElementById('modal').classList.remove('open');
+}
+
+document.getElementById('modal').addEventListener('click', e => {
+  if (e.target === document.getElementById('modal')) closeModal();
+});
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeModal();
+  if (e.key === 'Enter' && document.getElementById('modal').classList.contains('open')) saveGoal();
+});
+
+function buildEmojiPicker() {
+  document.getElementById('emoji-picker').innerHTML =
+    EMOJIS.map(e =>
+      `<button class="emoji-opt${e === selEmoji ? ' sel' : ''}" onclick="pickEmoji('${e}')">${e}</button>`
+    ).join('');
+}
+
+function pickEmoji(e) { selEmoji = e; buildEmojiPicker(); }
+
+function saveGoal() {
+  const name = document.getElementById('f-name').value.trim();
+  if (!name) { document.getElementById('f-name').focus(); return; }
+  const color  = document.getElementById('f-color').value;
+  const target = parseInt(document.getElementById('f-target').value) || 20;
+  if (editId) {
+    const g = goals.find(x => x.id === editId);
+    Object.assign(g, { name, emoji: selEmoji, color, target });
+  } else {
+    goals.push({ id: Date.now(), name, emoji: selEmoji, color, target, completions: {} });
+  }
+  saveData();
+  closeModal();
+  render();
+}
+
+function deleteGoal(id) {
+  if (!confirm('Удалить цель? Все данные будут потеряны.')) return;
+  goals = goals.filter(x => x.id !== id);
+  delete calState[id];
+  saveData();
+  render();
+}
+
+/* ── Tab switch ──────────────────────────────── */
+function switchTab(id, btn) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('tab-' + id).classList.add('active');
+}
+
+/* ── Render goal card ────────────────────────── */
+function buildGoalCard(g) {
+  const c = COLORS[g.color] || COLORS.purple;
+  const { year, month } = getCalState(g.id);
+  const now = new Date();
+  const today = todayKey();
+  const streak = calcStreak(g);
+  const monthCount = calcMonthCount(g, year, month);
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const firstDow = (new Date(year, month, 1).getDay() + 6) % 7;
+  const pct = Math.min(100, Math.round(monthCount / g.target * 100));
+  const isCurrentMonth = year === now.getFullYear() && month === now.getMonth();
+
+  const dayHeaders = DAY_NAMES.map(d => `<div class="cal-day-name">${d}</div>`).join('');
+  let cells = Array(firstDow).fill('<div class="cal-day empty"></div>').join('');
+  for (let d = 1; d <= daysInMonth; d++) {
+    const k = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const isToday   = k === today;
+    const isFuture  = k > today;
+    const done      = g.completions[k];
+    let cls = 'cal-day';
+    if (done)    cls += ' done';
+    if (isToday) cls += ' today';
+    if (isFuture) cls += ' future';
+    cells += `<div class="${cls}" onclick="toggleDay(${g.id},'${k}')">${d}</div>`;
+  }
+
+  return `
+  <div class="card">
+    <div class="goal-header">
+      <div class="goal-icon" style="background:${c.bg};border:0.5px solid ${c.border}">${g.emoji}</div>
+      <div>
+        <div class="goal-name">${g.name}</div>
+        <div class="goal-meta">
+          Цель: ${g.target} дн./мес
+          ${streak > 0 ? `<span class="streak-badge">🔥 ${streak} дн.</span>` : ''}
+        </div>
+      </div>
+      <div class="goal-actions">
+        <button class="btn btn-sm" onclick="openModal(${g.id})" title="Редактировать">✎</button>
+        <button class="btn btn-sm btn-danger" onclick="deleteGoal(${g.id})" title="Удалить">✕</button>
+      </div>
+    </div>
+
+    <div class="stats-row">
+      <div class="stat-pill">
+        <div class="stat-num" style="color:${c.icon}">${monthCount}</div>
+        <div class="stat-lbl">Выполнено</div>
+      </div>
+      <div class="stat-pill">
+        <div class="stat-num" style="color:${c.icon}">${Math.max(0, g.target - monthCount)}</div>
+        <div class="stat-lbl">Осталось</div>
+      </div>
+      <div class="stat-pill">
+        <div class="stat-num" style="color:${c.icon}">${streak}</div>
+        <div class="stat-lbl">Подряд</div>
+      </div>
+      <div class="stat-pill">
+        <div class="stat-num" style="color:${c.icon}">${pct}%</div>
+        <div class="stat-lbl">Прогресс</div>
+      </div>
+    </div>
+
+    <div class="progress-bar">
+      <div class="progress-fill" style="width:${pct}%;background:${c.icon}"></div>
+    </div>
+
+    <div class="cal-nav">
+      <button onclick="changeMonth(${g.id}, -1)">&#8249;</button>
+      <span>${MONTHS[month]} ${year}</span>
+      <button onclick="changeMonth(${g.id}, 1)" ${isCurrentMonth ? 'disabled' : ''}>&#8250;</button>
+    </div>
+    <div class="calendar-grid">
+      ${dayHeaders}
+      ${cells}
+    </div>
+  </div>`;
+}
+
+/* ── Render overview ─────────────────────────── */
+function buildOverview() {
+  const now = new Date();
+  const yr = now.getFullYear(), mo = now.getMonth();
+  const today = todayKey();
+
+  let totalDone = 0, bestStreak = 0, doneToday = 0;
+  goals.forEach(g => {
+    totalDone += calcMonthCount(g, yr, mo);
+    const s = calcStreak(g);
+    if (s > bestStreak) bestStreak = s;
+    if (g.completions[today]) doneToday++;
+  });
+
+  let html = `
+  <div class="overview-grid">
+    <div class="ov-card"><div class="ov-num" style="color:#534AB7">${goals.length}</div><div class="ov-lbl">Активных целей</div></div>
+    <div class="ov-card"><div class="ov-num" style="color:#1D9E75">${totalDone}</div><div class="ov-lbl">Выполнено в этом месяце</div></div>
+    <div class="ov-card"><div class="ov-num" style="color:#BA7517">${bestStreak}</div><div class="ov-lbl">Лучший streak 🔥</div></div>
+    <div class="ov-card"><div class="ov-num" style="color:#185FA5">${doneToday}/${goals.length}</div><div class="ov-lbl">Выполнено сегодня</div></div>
+  </div>`;
+
+  if (!goals.length) {
+    html += `<div class="empty-state"><div class="es-icon">🎯</div><p>Добавьте первую цель,<br>чтобы начать отслеживание</p></div>`;
+  } else {
+    goals.forEach(g => {
+      const c = COLORS[g.color] || COLORS.purple;
+      const mc = calcMonthCount(g, yr, mo);
+      const pct = Math.min(100, Math.round(mc / g.target * 100));
+      const streak = calcStreak(g);
+      html += `
+      <div class="goal-compact">
+        <div class="goal-compact-row">
+          <div class="goal-compact-icon" style="background:${c.bg};border:0.5px solid ${c.border}">${g.emoji}</div>
+          <span style="font-size:14px;font-weight:500">${g.name}</span>
+          ${streak > 0
+            ? `<span class="streak-badge" style="margin-left:auto">🔥 ${streak}</span>`
+            : `<span style="margin-left:auto;font-size:12px;color:var(--text3)">нет streak</span>`}
+        </div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <div class="progress-bar" style="flex:1;margin:0">
+            <div class="progress-fill" style="width:${pct}%;background:${c.icon}"></div>
+          </div>
+          <span style="font-size:12px;color:var(--text2);min-width:64px;text-align:right">${mc} / ${g.target} дн.</span>
+        </div>
+      </div>`;
+    });
+  }
+  return html;
+}
+
+/* ── Main render ─────────────────────────────── */
+function render() {
+  const gl = document.getElementById('goals-list');
+  const oc = document.getElementById('overview-content');
+
+  if (!goals.length) {
+    gl.innerHTML = `
+    <div class="empty-state">
+      <div class="es-icon">🎯</div>
+      <p>Нет целей. Нажмите <strong>+ Новая цель</strong>,<br>чтобы начать!</p>
+    </div>`;
+  } else {
+    gl.innerHTML = goals.map(buildGoalCard).join('');
+  }
+
+  oc.innerHTML = buildOverview();
+}
+
+/* ── Init ────────────────────────────────────── */
+buildEmojiPicker();
+loadData();
+render();
+</script>
+</body>
+</html>
